@@ -2,6 +2,8 @@ package com.example.bankdemo.external.nbp;
 
 import com.example.bankdemo.external.nbp.dto.Rate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
@@ -16,9 +18,13 @@ public class NBPService {
 
     private final RestTemplate restTemplate;
 
+    @Cacheable("euro-rate")
     public double getEuroExchangeRate() {
-        var rate = restTemplate.getForEntity(EURO_RATE_URL, Rate.class).getBody();
-        var rateStamp = Optional.ofNullable(CollectionUtils.lastElement(rate.rates()));
-        return rateStamp.orElseThrow(EuroRateUnavailable::new).mid();
+        var rate = Optional.ofNullable(fetchEuroRate().getBody());
+        return rate.map(r -> CollectionUtils.lastElement(r.rates())).orElseThrow(EuroRateUnavailable::new).mid();
+    }
+
+    private ResponseEntity<Rate> fetchEuroRate() {
+        return restTemplate.getForEntity(EURO_RATE_URL, Rate.class);
     }
 }
